@@ -34,7 +34,9 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
@@ -104,8 +106,7 @@ public class CuratorFrameworkFactory
         private RetryPolicy         retryPolicy;
         private ThreadFactory       threadFactory = null;
         private String              namespace;
-        private String              authScheme = null;
-        private byte[]              authValue = null;
+        private List<AuthInfo>      auths = new ArrayList<AuthInfo>();
         private byte[]              defaultData = LOCAL_ADDRESS;
         private CompressionProvider compressionProvider = DEFAULT_COMPRESSION_PROVIDER;
         private ZookeeperFactory    zookeeperFactory = DEFAULT_ZOOKEEPER_FACTORY;
@@ -151,18 +152,36 @@ public class CuratorFrameworkFactory
         }
 
         /**
-         * Add connection authorization
+         * Add connection authorization. Overwrites previously added authorization information.
          *
          * @param scheme the scheme
          * @param auth the auth bytes
          * @return this
          */
-        public Builder  authorization(String scheme, byte[] auth)
+        public Builder authorization(String scheme, byte[] auth)
         {
-            this.authScheme = scheme;
-            this.authValue = (auth != null) ? Arrays.copyOf(auth, auth.length) : null;
+            this.auths.clear();
+            this.auths.add(new AuthInfo(scheme,
+                (auth != null) ? Arrays.copyOf(auth, auth.length) : null));
             return this;
         }
+
+        /**
+         * Add connection authorization. Overwrites previously added authorization information.
+         *
+         * @param authInfos list of {@link AuthInfo}
+         * @return this
+         */
+        public Builder authorization(List<AuthInfo> authInfos)
+        {
+            this.auths.clear();
+            for (AuthInfo authInfo : authInfos) {
+                this.auths.add(new AuthInfo(authInfo.scheme,
+                        (authInfo.auth != null) ? Arrays.copyOf(authInfo.auth, authInfo.auth.length) : null));
+            }
+            return this;
+        }
+
 
         /**
          * Set the list of servers to connect to. IMPORTANT: use either this or {@link #ensembleProvider(EnsembleProvider)}
@@ -348,12 +367,17 @@ public class CuratorFrameworkFactory
 
         public String getAuthScheme()
         {
-            return authScheme;
+            return auths.get(0).scheme;
         }
 
         public byte[] getAuthValue()
         {
+            byte[] authValue = auths.get(0).auth;
             return (authValue != null) ? Arrays.copyOf(authValue, authValue.length) : null;
+        }
+
+        public List<AuthInfo> getAuthInfos() {
+            return auths;
         }
 
         public byte[] getDefaultData()
